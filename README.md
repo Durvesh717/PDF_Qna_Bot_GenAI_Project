@@ -46,8 +46,8 @@ Before running this application, you need to obtain API keys from:
 
 ### 1. Clone the Repository
 ```bash
-git clone <your-repository-url>
-cd PDF_Qna_GenAI_Project
+git clone https://github.com/Durvesh717/PDF_Qna_Bot_GenAI_Project
+cd PDF_Qna_Bot_GenAI_Project
 ```
 
 ### 2. Create Virtual Environment (Recommended)
