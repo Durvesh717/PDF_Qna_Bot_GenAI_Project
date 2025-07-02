@@ -1,0 +1,14 @@
+streamlit
+langchain
+langchain-google-genai
+langchain-chroma
+chromadb
+langchain-core
+langchain-text-splitters
+langchain-upstage
+google-generativeai
+pymupdf4llm
+python-dotenv
+pymupdf4llm
+pillow
+requests
