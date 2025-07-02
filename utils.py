@@ -131,7 +131,6 @@ def extract_content_from_pdf(file_path):
 
 def create_vector_store(merged_docs):
     try:
-        # Split text into chunks
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
         all_splits = text_splitter.split_documents(merged_docs)
         

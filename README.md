@@ -14,8 +14,7 @@ A powerful Streamlit application that allows users to upload PDF documents and a
 ## 🤖 AI Models Used
 
 ### Primary Models
-- **Google Gemini 2.0 Flash**: Main language model for question answering
-- **Google Gemini 1.5 Flash 8B**: Specialized model for image and visual content analysis
+- **Google Gemini 2.0 Flash**: Main language model for question answering and image and visual content analysis.
 - **Google Text Embedding 004**: Creates vector embeddings for semantic search
 
 ### Document Processing
