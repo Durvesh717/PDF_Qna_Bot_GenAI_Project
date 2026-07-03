@@ -6,6 +6,7 @@ from rank_bm25 import BM25Okapi
 
 from core.config import Settings, get_settings
 from core.logger import get_logger
+from retrieval.query_transform import generate_multi_queries
 
 logger = get_logger(__name__)
 
@@ -84,4 +85,22 @@ class HybridRetriever:
         sparse = self._sparse_search(query, self.top_k)
         fused = self._reciprocal_rank_fusion([dense, sparse])
         logger.info(f"Retrieved {len(fused)} documents after fusion")
+        return fused
+
+    def retrieve_multi_query(
+        self, query: str, n_variations: int = 3
+    ) -> List[Document]:
+        """Retrieve using multiple query variations and fuse results."""
+        logger.info(f"Multi-query retrieval for: {query}")
+        queries = [query] + generate_multi_queries(query, n=n_variations, settings=self.settings)
+        all_results = []
+        for q in queries:
+            dense = self._dense_search(q, self.top_k)
+            sparse = self._sparse_search(q, self.top_k)
+            all_results.extend([dense, sparse])
+
+        fused = self._reciprocal_rank_fusion(all_results)
+        logger.info(
+            f"Multi-query retrieval returned {len(fused)} documents from {len(queries)} queries"
+        )
         return fused
