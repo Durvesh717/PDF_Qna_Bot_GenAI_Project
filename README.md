@@ -1,171 +1,166 @@
-# 📚 PDF Q&A Bot with Google Gemini AI
+# 📚 PDF Q&A Bot — Agentic RAG with Streamlit
 
-A powerful Streamlit application that allows users to upload PDF documents and ask questions about their content using Google's Gemini AI models and advanced document processing capabilities.
+A production-oriented Streamlit application for chatting with PDF documents. It combines multimodal document parsing, advanced retrieval techniques, and a self-correcting agentic RAG pipeline.
 
 ## 🌟 Features
 
-- **Multi-Modal PDF Processing**: Extracts both text and visual content (charts, tables, figures) from PDFs
-- **Intelligent Document Parsing**: Uses Upstage AI for advanced document structure understanding
-- **Visual Content Analysis**: Gemini AI analyzes and describes images, charts, and tables within PDFs
-- **Vector-Based Search**: Implements semantic search using Chroma vector database
-- **Interactive Chat Interface**: Clean, user-friendly Streamlit interface for Q&A
-- **Real-time Processing**: Live document processing and question answering
+- **Multimodal PDF Ingestion**: Extracts text, tables, charts, and figures using Upstage AI + PyMuPDF4LLM.
+- **Visual Content Analysis**: Gemini describes images, charts, and tables found in the PDF.
+- **Advanced Retrieval**:
+  - Hybrid dense + BM25 keyword search
+  - Cross-encoder reranking
+  - Query rewriting and multi-query retrieval
+  - Parent document retrieval
+- **Agentic RAG (CRAG)**: LangGraph agent that grades retrieval relevance, detects hallucinations, and falls back to web search when needed.
+- **Source Citations**: Answers include references to document pages or web URLs.
+- **Persistent Vector Store**: Chroma collections persist across sessions.
+- **Evaluation**: RAGAS metrics for faithfulness, relevance, and context quality.
+- **Observability**: LangSmith tracing support.
 
-## 🤖 AI Models Used
+## 🏗️ How It Works
 
-### Primary Models
-- **Google Gemini 2.0 Flash**: Main language model for question answering and image and visual content analysis.
-- **Google Text Embedding 004**: Creates vector embeddings for semantic search
+```
+PDF Upload
+    │
+    ▼
+┌─────────────────┐
+│   Ingestion     │  PyMuPDF4LLM + Upstage parse text & images
+│     Layer       │  Gemini describes images/charts/tables
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│    Chunking     │  Recursive splitter with parent tracking
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  Vector Store   │  Chroma + Google text-embedding-004
+│   (Persistent)  │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│    CRAG Agent   │  Route → Retrieve → Grade → Generate → Grade
+│   (LangGraph)   │  Falls back to web search if needed
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  Streamlit UI   │  Chat interface with citations
+└─────────────────┘
+```
 
-### Document Processing
-- **Upstage Document Parse API**: Advanced PDF parsing with structure recognition
-- **PyMuPDF4LLM**: Converts PDF content to markdown format
+## 🤖 AI Models
+
+- **Google Gemini 2.0 Flash**: Main LLM and vision model.
+- **Google Text Embedding 004**: Dense embeddings.
+- **BAAI/bge-reranker-base**: Cross-encoder reranker.
+- **Upstage Document Parse**: Structured PDF parsing.
 
 ## 🛠️ Technology Stack
 
 - **Frontend**: Streamlit
-- **AI/ML**: LangChain, Google Generative AI
-- **Vector Database**: Chroma
-- **Document Processing**: PyMuPDF4LLM, Upstage AI
-- **Text Processing**: LangChain Text Splitters
-- **Language**: Python 3.8 - 3.12 ⚠️ **NOT compatible with Python  3.13**
+- **AI/ML**: LangChain, LangGraph, Google Generative AI
+- **Vector DB**: Chroma
+- **Evaluation**: RAGAS
+- **Observability**: LangSmith
+- **Language**: Python 3.12
 
 ## 📋 Prerequisites
 
-Before running this application, you need to obtain API keys from:
+Get API keys from:
 
-1. **Google AI Studio**: 
-   - Visit: https://aistudio.google.com/app/apikey
-   - Create an account and generate an API key
+1. **Google AI Studio**: https://aistudio.google.com/app/apikey
+2. **Upstage AI**: https://console.upstage.ai/docs/getting-started
+3. *(Optional)* **Tavily**: https://tavily.com for premium web search fallback
+4. *(Optional)* **LangSmith**: https://smith.langchain.com for tracing
 
-2. **Upstage AI**:
-   - Visit: https://console.upstage.ai/docs/getting-started
-   - Sign up and get your API key
+## 🚀 Local Setup
 
-## 🚀 Installation & Setup
+### 1. Clone and enter the repo
 
-### 1. Clone the Repository
 ```bash
 git clone https://github.com/Durvesh717/PDF_Qna_Bot_GenAI_Project
 cd PDF_Qna_Bot_GenAI_Project
 ```
 
-### 2. Create Virtual Environment (Recommended)
+### 2. Create virtual environment
+
 ```bash
-python -m venv venv 
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+uv venv
+source .venv/bin/activate
 ```
 
-### 3. Install Dependencies
+### 3. Install dependencies
+
 ```bash
-pip install -r requirements.txt
+uv pip install -r requirements.txt
 ```
 
-### 4. Run the Application
+### 4. Configure environment variables
+
+```bash
+cp .env.example .env
+# Edit .env with your API keys
+```
+
+### 5. Run the app
+
 ```bash
 streamlit run app.py
 ```
 
-The application will open in your default web browser at `http://localhost:8501`
+Open the UI at `http://localhost:8501`.
 
-## 📖 How to Use
+## 🧪 Evaluation
 
-### Step 1: API Configuration
-1. Launch the application
-2. In the sidebar, enter your **Google AI Studio API Key**
-3. Enter your **Upstage API Key**
+Generate synthetic test questions and run RAGAS evaluation:
 
-### Step 2: Upload Document
-1. Click "Choose a PDF file" in the sidebar
-2. Select your PDF document
-3. Click "🔄 Process PDF" to analyze the document
+```python
+from evaluation.test_data import generate_test_questions
+from evaluation.evaluator import evaluate_qa_pairs
+from ingestion.vectorstore import get_vector_store
 
-### Step 3: Ask Questions
-1. Once processing is complete, use the text input to ask questions
-2. Try sample questions provided in the sidebar
-3. Get intelligent responses based on your document content
-
-## 🔧 Key Components
-
-### `app.py`
-- Main Streamlit application
-- User interface and interaction handling
-- Session state management
-- File upload and processing coordination
-
-### `utils.py`
-- Core document processing functions
-- PDF content extraction and analysis
-- Vector store creation and management
-- RAG (Retrieval-Augmented Generation) chain implementation
-
-### Key Functions:
-- `extract_content_from_pdf()`: Processes uploaded PDF files
-- `create_vector_store()`: Creates searchable vector embeddings
-- `create_conversation_chain()`: Sets up the Q&A pipeline
-- `create_image_descriptions()`: Analyzes visual content in PDFs
-
-## 🏗️ Architecture
-
-```
-PDF Upload → Document Parsing → Content Extraction → Vector Store Creation → RAG Chain → Q&A Interface
-     ↓              ↓                    ↓                     ↓              ↓           ↓
-  Streamlit    Upstage AI +       Text + Image        Chroma Vector     LangChain    Streamlit
-              PyMuPDF4LLM        Processing          Database         RAG Chain      Chat UI
-                                (Gemini AI)
+vector_store = get_vector_store("my_docs")
+docs = vector_store.similarity_search("", k=10)
+qa_pairs = generate_test_questions(docs)
+results = evaluate_qa_pairs(qa_pairs, collection="my_docs")
+print(results)
 ```
 
-## 📊 Document Processing Pipeline
+Metrics tracked:
+- Faithfulness
+- Answer Relevancy
+- Context Precision
+- Context Recall
 
-1. **Text Extraction**: PyMuPDF4LLM converts PDF to markdown
-2. **Structure Parsing**: Upstage AI identifies document elements
-3. **Image Analysis**: Gemini AI describes visual content
-4. **Content Merging**: Combines text and visual descriptions
-5. **Vectorization**: Creates embeddings for semantic search
-6. **Storage**: Stores in Chroma vector database
+## 📁 Project Structure
 
-## 🎯 Use Cases
-
-- **Research**: Quickly find information in academic papers
-- **Legal**: Search through legal documents and contracts
-- **Business**: Analyze reports, presentations, and proposals
-- **Education**: Study materials and textbook Q&A
-- **Technical**: Documentation and manual queries
+```
+PDF_Qna_Bot_GenAI_Project/
+├── app/              # Streamlit frontend
+├── core/             # Config, logging, tracing
+├── ingestion/        # PDF parsing, chunking, vector store
+├── retrieval/        # Hybrid search, reranker, query transform
+├── generation/       # LLM clients and prompts
+├── agents/           # CRAG LangGraph agent
+├── evaluation/       # RAGAS evaluation
+├── data/             # Persistent vector store
+├── requirements.txt
+└── README.md
+```
 
 ## 🔒 Security Notes
 
-- API keys are handled securely through environment variables
-- No document content is permanently stored
-- All processing happens locally within your session
+- API keys are loaded from environment variables (`.env`).
+- No document content is sent to third parties except the configured LLM/embedding providers.
+- Persistent data is stored locally in `data/`.
 
 ## 🐛 Troubleshooting
 
-**Python Version Issues:**
+**Python version**: Use Python 3.11 or 3.12. Some dependencies do not yet support Python 3.13.
 
-1. **Python 3.13 Compatibility Error**: 
-   - **Error**: `the configured Python interpreter version (3.13) is newer than PyO3's maximum supported version (3.12)`
-   - **Solution**: Use Python 3.8-3.12. The `tokenizers` package doesn't support Python 3.13 yet
-   - **Fix**: Install Python 3.11 or 3.12 and recreate your virtual environment
+**RAGAS import errors**: RAGAS can be sensitive to LangChain versions. The evaluator uses lazy imports to avoid breaking the app.
 
-2. **Checking Your Python Version**:
-   ```bash
-   python --version  # Should show 3.8.x to 3.12.x
-   ```
-
-**Other Common Issues:**
-
-1. **API Key Errors**: Ensure both API keys are correctly entered
-2. **PDF Processing Fails**: Check if PDF is readable and not password-protected
-3. **Memory Issues**: Large PDFs may require more system memory
-4. **Slow Processing**: Image-heavy PDFs take longer to process
-5. **Installation Failures**: Make sure you're using a compatible Python version (3.8-3.12)
-
-## 📝 Requirements
-
-See `requirements.txt` for complete dependency list. Key packages:
-- streamlit
-- langchain ecosystem (core, google-genai, chroma, text-splitters, upstage)
-- google-generativeai
-- pymupdf4llm
-- chromadb
-
+**API key errors**: Ensure `GOOGLE_API_KEY` and `UPSTAGE_API_KEY` are set in `.env`.
