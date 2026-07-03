@@ -10,36 +10,35 @@ from core.config import Settings, get_settings
 def _get_google_llm(settings: Settings, model: str, temperature: float, **kwargs) -> BaseChatModel:
     from langchain_google_genai import ChatGoogleGenerativeAI
 
-    return ChatGoogleGenerativeAI(
-        model=model,
-        temperature=temperature,
-        google_api_key=settings.google_api_key,
-        **kwargs,
-    )
+    config = {"model": model, "temperature": temperature, **kwargs}
+    if settings.google_api_key:
+        config["google_api_key"] = settings.google_api_key
+    return ChatGoogleGenerativeAI(**config)
 
 
 def _get_openai_llm(settings: Settings, model: str, temperature: float, **kwargs) -> BaseChatModel:
     from langchain_openai import ChatOpenAI
 
-    return ChatOpenAI(
-        model=model,
-        temperature=temperature,
-        api_key=settings.openai_api_key,
-        **kwargs,
-    )
+    config = {"model": model, "temperature": temperature, **kwargs}
+    if settings.openai_api_key:
+        config["api_key"] = settings.openai_api_key
+    return ChatOpenAI(**config)
 
 
 def _get_bedrock_llm(settings: Settings, model: str, temperature: float, **kwargs) -> BaseChatModel:
     from langchain_aws import ChatBedrock
 
-    return ChatBedrock(
-        model_id=model,
-        temperature=temperature,
-        region_name=settings.aws_region,
-        aws_access_key_id=settings.aws_access_key_id,
-        aws_secret_access_key=settings.aws_secret_access_key,
+    config = {
+        "model_id": model,
+        "temperature": temperature,
+        "region_name": settings.aws_region,
         **kwargs,
-    )
+    }
+    if settings.aws_access_key_id:
+        config["aws_access_key_id"] = settings.aws_access_key_id
+    if settings.aws_secret_access_key:
+        config["aws_secret_access_key"] = settings.aws_secret_access_key
+    return ChatBedrock(**config)
 
 
 @lru_cache
@@ -76,26 +75,26 @@ def get_embeddings(
     if provider == "google":
         from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
-        return GoogleGenerativeAIEmbeddings(
-            model=model,
-            google_api_key=settings.google_api_key,
-        )
+        config = {"model": model}
+        if settings.google_api_key:
+            config["google_api_key"] = settings.google_api_key
+        return GoogleGenerativeAIEmbeddings(**config)
     if provider == "openai":
         from langchain_openai import OpenAIEmbeddings
 
-        return OpenAIEmbeddings(
-            model=model,
-            api_key=settings.openai_api_key,
-        )
+        config = {"model": model}
+        if settings.openai_api_key:
+            config["api_key"] = settings.openai_api_key
+        return OpenAIEmbeddings(**config)
     if provider == "bedrock":
         from langchain_aws import BedrockEmbeddings
 
-        return BedrockEmbeddings(
-            model_id=model,
-            region_name=settings.aws_region,
-            aws_access_key_id=settings.aws_access_key_id,
-            aws_secret_access_key=settings.aws_secret_access_key,
-        )
+        config = {"model_id": model, "region_name": settings.aws_region}
+        if settings.aws_access_key_id:
+            config["aws_access_key_id"] = settings.aws_access_key_id
+        if settings.aws_secret_access_key:
+            config["aws_secret_access_key"] = settings.aws_secret_access_key
+        return BedrockEmbeddings(**config)
 
     raise ValueError(f"Unsupported embedding provider: {provider}")
 
