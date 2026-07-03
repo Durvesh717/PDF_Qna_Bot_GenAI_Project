@@ -13,6 +13,8 @@ A production-oriented Streamlit application for chatting with PDF documents. It 
   - Parent document retrieval
 - **Agentic RAG (CRAG)**: LangGraph agent that grades retrieval relevance, detects hallucinations, and falls back to web search when needed.
 - **Source Citations**: Answers include references to document pages or web URLs.
+- **Multi-Document Upload**: Upload multiple PDFs into one collection and chat across all of them.
+- **Collection Manager**: List, load, and delete document collections from the sidebar.
 - **Persistent Vector Store**: Chroma collections persist across sessions.
 - **Evaluation**: RAGAS metrics for faithfulness, relevance, and context quality.
 - **Observability**: LangSmith tracing support.
