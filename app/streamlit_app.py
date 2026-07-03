@@ -1,5 +1,6 @@
 import os
-import tempfile
+import shutil
+from pathlib import Path
 
 import streamlit as st
 
@@ -13,7 +14,12 @@ from generation.llm import (
 )
 from ingestion.chunker import split_documents
 from ingestion.parser import extract_content_from_pdf
-from ingestion.vectorstore import create_collection, get_vector_store
+from ingestion.vectorstore import (
+    create_collection,
+    delete_collection,
+    get_vector_store,
+    list_collections,
+)
 
 logger = get_logger(__name__)
 
@@ -63,9 +69,46 @@ def create_agent(vector_store):
     return CRAGAgent(vector_store)
 
 
+def _has_required_keys(settings, google_api_key, openai_api_key, aws_access_key_id, aws_secret_access_key):
+    providers = {settings.llm_provider, settings.embedding_provider, settings.vision_provider}
+    if "google" in providers and not google_api_key:
+        return False
+    if "openai" in providers and not openai_api_key:
+        return False
+    if "bedrock" in providers and (not aws_access_key_id or not aws_secret_access_key):
+        return False
+    return True
+
+
+def _save_upload(file, upload_dir: Path) -> Path:
+    """Persist uploaded file to local storage."""
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    dest = upload_dir / file.name
+    with open(dest, "wb") as f:
+        f.write(file.getvalue())
+    return dest
+
+
+def _load_collection(collection_name: str, settings):
+    """Load an existing collection into session state."""
+    vector_store = get_vector_store(collection_name, settings)
+    st.session_state.vector_store = vector_store
+    st.session_state.agent = create_agent(vector_store)
+    st.session_state.processed = True
+    st.session_state.current_collection = collection_name
+
+
 def main():
     settings = get_settings()
     configure_langsmith(settings)
+
+    # Initialize session state
+    if "processed" not in st.session_state:
+        st.session_state.processed = False
+    if "current_collection" not in st.session_state:
+        st.session_state.current_collection = "default"
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
 
     st.markdown('<h1 class="main-header">📚 PDF Q&A Bot</h1>', unsafe_allow_html=True)
     st.markdown("Upload your PDF documents and ask questions about their content!")
@@ -159,56 +202,92 @@ def main():
         settings.vision_provider = vision_provider
         settings.vision_model = vision_model
 
-        uploaded_file = st.file_uploader(
-            "Choose a PDF file", type="pdf", help="Upload a PDF file to analyze"
+        keys_ok = _has_required_keys(
+            settings, google_api_key, openai_api_key, aws_access_key_id, aws_secret_access_key
         )
+
+        st.markdown("---")
+        st.markdown("#### 📤 Upload Documents")
 
         collection_name = st.text_input(
             "Collection name",
-            value="default",
-            help="Name for the document collection",
+            value=st.session_state.current_collection,
+            help="All uploaded files go into this collection. You can chat across them.",
         )
 
-        def _has_required_keys() -> bool:
-            if llm_provider == "google" and not google_api_key:
-                return False
-            if embedding_provider == "google" and not google_api_key:
-                return False
-            if vision_provider == "google" and not google_api_key:
-                return False
-            if llm_provider == "openai" and not openai_api_key:
-                return False
-            if embedding_provider == "openai" and not openai_api_key:
-                return False
-            if vision_provider == "openai" and not openai_api_key:
-                return False
-            if llm_provider == "bedrock" and (not aws_access_key_id or not aws_secret_access_key):
-                return False
-            if embedding_provider == "bedrock" and (not aws_access_key_id or not aws_secret_access_key):
-                return False
-            if vision_provider == "bedrock" and (not aws_access_key_id or not aws_secret_access_key):
-                return False
-            return True
+        uploaded_files = st.file_uploader(
+            "Choose one or more PDF files",
+            type="pdf",
+            accept_multiple_files=True,
+            help="Upload multiple PDFs to chat across all of them",
+        )
 
-        if uploaded_file and _has_required_keys():
-            st.success("✅ File uploaded successfully!")
+        if uploaded_files and keys_ok:
+            st.success(f"✅ {len(uploaded_files)} file(s) selected")
 
-            if st.button("🔄 Process PDF", type="primary"):
-                with st.spinner("Processing PDF..."):
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-                        tmp_file.write(uploaded_file.read())
-                        temp_path = tmp_file.name
+            if st.button("🔄 Process PDFs", type="primary"):
+                with st.spinner("Processing PDFs..."):
+                    all_chunks = []
+                    saved_paths = []
 
-                    merged_docs = extract_content_from_pdf(temp_path)
+                    for uploaded_file in uploaded_files:
+                        saved_path = _save_upload(uploaded_file, settings.uploads_dir)
+                        saved_paths.append(saved_path)
+                        merged_docs = extract_content_from_pdf(saved_path)
+                        if merged_docs:
+                            chunks = split_documents(merged_docs)
+                            all_chunks.extend(chunks)
 
-                    if merged_docs:
-                        chunks = split_documents(merged_docs)
-                        vector_store = create_collection(chunks, collection_name)
+                    if all_chunks:
+                        vector_store = create_collection(all_chunks, collection_name)
                         st.session_state.vector_store = vector_store
                         st.session_state.agent = create_agent(vector_store)
                         st.session_state.processed = True
-                        st.success(f"✅ PDF processed into collection '{collection_name}'!")
+                        st.session_state.current_collection = collection_name
+                        st.session_state.messages = []
+                        st.success(
+                            f"✅ Processed {len(uploaded_files)} file(s) into collection '{collection_name}'!"
+                        )
                         st.rerun()
+                    else:
+                        st.error("No content could be extracted from the uploaded PDFs.")
+
+        st.markdown("---")
+        st.markdown("#### 🗂️ Collection Manager")
+
+        try:
+            existing_collections = list_collections(settings)
+        except Exception:
+            existing_collections = []
+
+        if existing_collections:
+            selected_collection = st.selectbox(
+                "Select active collection",
+                options=existing_collections,
+                index=existing_collections.index(st.session_state.current_collection)
+                if st.session_state.current_collection in existing_collections
+                else 0,
+            )
+
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Load Collection"):
+                    _load_collection(selected_collection, settings)
+                    st.success(f"Loaded collection '{selected_collection}'")
+                    st.rerun()
+            with col2:
+                if st.button("Delete Collection"):
+                    try:
+                        delete_collection(selected_collection, settings)
+                        if st.session_state.get("current_collection") == selected_collection:
+                            st.session_state.processed = False
+                            st.session_state.messages = []
+                        st.success(f"Deleted collection '{selected_collection}'")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Failed to delete collection: {e}")
+        else:
+            st.info("No collections yet. Upload a PDF to create one.")
 
         st.markdown("</div>", unsafe_allow_html=True)
         st.markdown("---")
@@ -216,9 +295,10 @@ def main():
         st.markdown(
             """
 1. Enter API keys for the providers you selected
-2. Upload a PDF file
-3. Click 'Process PDF'
-4. Start asking questions!
+2. Choose or create a collection name
+3. Upload one or more PDF files
+4. Click 'Process PDFs'
+5. Start asking questions across all uploaded documents!
 """
         )
 
@@ -236,18 +316,15 @@ def main():
                 if st.button(question, key=f"sample_{question}"):
                     st.session_state.current_question = question
 
-    if not _has_required_keys():
+    if not keys_ok:
         st.warning("⚠️ Please enter the required API keys for your selected providers in the sidebar.")
         st.info("Google: https://aistudio.google.com/app/apikey")
         st.info("OpenAI: https://platform.openai.com/api-keys")
         st.info("AWS Bedrock: https://aws.amazon.com/console/")
-    elif not uploaded_file:
-        st.info("📄 Please upload a PDF file to begin asking questions.")
     elif not st.session_state.get("processed"):
-        st.info("🔄 Please click 'Process PDF' in the sidebar to analyze your document.")
+        st.info("📄 Please upload PDF files and click 'Process PDFs' to begin asking questions.")
     else:
-        if "messages" not in st.session_state:
-            st.session_state.messages = []
+        st.info(f"💬 Chatting with collection: **{st.session_state.current_collection}**")
 
         chat_container = st.container()
         with chat_container:
@@ -271,8 +348,8 @@ def main():
             del st.session_state.current_question
         else:
             user_question = st.text_input(
-                "Ask a question about your PDF:",
-                placeholder="e.g., What is the main topic discussed in this document?",
+                "Ask a question about your PDFs:",
+                placeholder="e.g., What is the main topic discussed in these documents?",
             )
 
         if user_question and st.button("Send", type="primary"):
@@ -297,6 +374,4 @@ def main():
 
 
 if __name__ == "__main__":
-    if "processed" not in st.session_state:
-        st.session_state.processed = False
     main()
