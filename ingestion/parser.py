@@ -49,7 +49,7 @@ def extract_images_from_pdf(file_path: str | Path) -> List[Document]:
     import fitz  # PyMuPDF
 
     doc = fitz.open(str(file_path))
-    model = get_vision_llm()
+    model = None
     image_docs = []
 
     for page_num in range(len(doc)):
@@ -66,6 +66,14 @@ def extract_images_from_pdf(file_path: str | Path) -> List[Document]:
                 # Skip small or likely decorative images
                 if len(image_bytes) < 2048:
                     continue
+
+                # Lazy-load vision model only when an image is found
+                if model is None:
+                    try:
+                        model = get_vision_llm()
+                    except Exception as e:
+                        logger.warning(f"Vision model unavailable, skipping image descriptions: {e}")
+                        break
 
                 # Convert to JPEG for consistency
                 pil_image = Image.open(io.BytesIO(image_bytes))
@@ -113,7 +121,7 @@ def merge_text_and_images(
     page_metadata = {}
 
     for text_item in md_text:
-        page = int(text_item["metadata"]["page"])
+        page = int(text_item["metadata"].get("page", text_item["metadata"].get("page_number", 1)))
         page_contents[page].append(text_item["text"])
         if page not in page_metadata:
             page_metadata[page] = {
