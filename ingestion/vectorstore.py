@@ -16,7 +16,7 @@ def get_vector_store(
 ) -> Chroma:
     """Return a persistent Chroma vector store for a given collection."""
     settings = settings or get_settings()
-    embeddings = get_embeddings(settings.embedding_model)
+    embeddings = get_embeddings(settings.embedding_provider, settings.embedding_model)
     logger.info(f"Loading vector store collection: {collection_name}")
     return Chroma(
         collection_name=collection_name,
@@ -32,7 +32,7 @@ def create_collection(
 ) -> Chroma:
     """Create a new Chroma collection from documents."""
     settings = settings or get_settings()
-    embeddings = get_embeddings(settings.embedding_model)
+    embeddings = get_embeddings(settings.embedding_provider, settings.embedding_model)
     logger.info(f"Creating collection '{collection_name}' with {len(documents)} documents")
     return Chroma.from_documents(
         documents=documents,
@@ -49,7 +49,7 @@ def delete_collection(collection_name: str, settings: Settings | None = None) ->
     store = Chroma(
         collection_name=collection_name,
         persist_directory=str(settings.chroma_persist_dir),
-        embedding_function=get_embeddings(settings.embedding_model),
+        embedding_function=get_embeddings(settings.embedding_provider, settings.embedding_model),
     )
     store.delete_collection()
 
@@ -59,6 +59,6 @@ def list_collections(settings: Settings | None = None) -> List[str]:
     settings = settings or get_settings()
     client = Chroma(
         persist_directory=str(settings.chroma_persist_dir),
-        embedding_function=get_embeddings(settings.embedding_model),
+        embedding_function=get_embeddings(settings.embedding_provider, settings.embedding_model),
     )
     return client._client.list_collections()

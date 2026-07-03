@@ -1,6 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -16,13 +16,21 @@ class Settings(BaseSettings):
 
     # API Keys
     google_api_key: Optional[str] = None
-    upstage_api_key: Optional[str] = None
+    openai_api_key: Optional[str] = None
+    aws_access_key_id: Optional[str] = None
+    aws_secret_access_key: Optional[str] = None
+    aws_region: str = "us-east-1"
     tavily_api_key: Optional[str] = None
     langsmith_api_key: Optional[str] = None
 
-    # Model configuration
+    # Model provider and model selection
+    llm_provider: Literal["google", "openai", "bedrock"] = "google"
     llm_model: str = "gemini-2.0-flash"
+
+    embedding_provider: Literal["google", "openai", "bedrock"] = "google"
     embedding_model: str = "models/text-embedding-004"
+
+    vision_provider: Literal["google", "openai", "bedrock"] = "google"
     vision_model: str = "gemini-2.0-flash"
 
     # Paths
