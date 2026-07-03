@@ -1,15 +1,11 @@
 import os
 import tempfile
-from pathlib import Path
 
 import streamlit as st
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnableParallel, RunnablePassthrough
 
+from agents.crag_agent import CRAGAgent
 from core.config import get_settings
 from core.logger import get_logger
-from generation.llm import get_llm
 from ingestion.chunker import split_documents
 from ingestion.parser import extract_content_from_pdf
 from ingestion.vectorstore import create_collection, get_vector_store
@@ -58,41 +54,8 @@ st.markdown(
 )
 
 
-def format_docs(docs):
-    return "\n\n".join(doc.page_content for doc in docs)
-
-
-def create_chain(vector_store):
-    model = get_llm()
-    prompt = ChatPromptTemplate(
-        [
-            (
-                "human",
-                """You are an assistant for question-answering tasks.
-Use the following pieces of retrieved context to answer the question.
-If you don't know the answer, just say that you don't know.
-
-Question: {question}
-Context: {context}
-
-Answer:""",
-            )
-        ]
-    )
-
-    return (
-        RunnableParallel(
-            {
-                "context": lambda x: format_docs(
-                    vector_store.similarity_search(x["question"], k=get_settings().top_k)
-                ),
-                "question": RunnablePassthrough(),
-            }
-        )
-        | prompt
-        | model
-        | StrOutputParser()
-    )
+def create_agent(vector_store):
+    return CRAGAgent(vector_store)
 
 
 def main():
@@ -144,14 +107,14 @@ def main():
 
                     merged_docs = extract_content_from_pdf(temp_path)
 
-                    if merged_docs:
-                        chunks = split_documents(merged_docs)
-                        vector_store = create_collection(chunks, collection_name)
-                        st.session_state.vector_store = vector_store
-                        st.session_state.conversation_chain = create_chain(vector_store)
-                        st.session_state.processed = True
-                        st.success(f"✅ PDF processed into collection '{collection_name}'!")
-                        st.rerun()
+                        if merged_docs:
+                            chunks = split_documents(merged_docs)
+                            vector_store = create_collection(chunks, collection_name)
+                            st.session_state.vector_store = vector_store
+                            st.session_state.agent = create_agent(vector_store)
+                            st.session_state.processed = True
+                            st.success(f"✅ PDF processed into collection '{collection_name}'!")
+                            st.rerun()
 
         st.markdown("</div>", unsafe_allow_html=True)
         st.markdown("---")
@@ -225,9 +188,8 @@ def main():
 
             with st.spinner("Thinking..."):
                 try:
-                    response = st.session_state.conversation_chain.invoke(
-                        {"question": user_question}
-                    )
+                    result = st.session_state.agent.invoke(user_question)
+                    response = result.get("generation", "I could not generate an answer.")
                     st.session_state.messages.append(
                         {"role": "assistant", "content": response}
                     )
