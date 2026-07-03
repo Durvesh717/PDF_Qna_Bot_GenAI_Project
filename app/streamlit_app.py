@@ -6,6 +6,7 @@ import streamlit as st
 from agents.crag_agent import CRAGAgent
 from core.config import get_settings
 from core.logger import get_logger
+from core.tracing import configure_langsmith
 from ingestion.chunker import split_documents
 from ingestion.parser import extract_content_from_pdf
 from ingestion.vectorstore import create_collection, get_vector_store
@@ -60,6 +61,7 @@ def create_agent(vector_store):
 
 def main():
     settings = get_settings()
+    configure_langsmith(settings)
 
     st.markdown('<h1 class="main-header">📚 PDF Q&A Bot</h1>', unsafe_allow_html=True)
     st.markdown("Upload your PDF documents and ask questions about their content!")
