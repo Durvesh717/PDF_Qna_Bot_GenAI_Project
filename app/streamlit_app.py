@@ -7,6 +7,10 @@ from agents.crag_agent import CRAGAgent
 from core.config import get_settings
 from core.logger import get_logger
 from core.tracing import configure_langsmith
+from generation.llm import (
+    list_available_embedding_models,
+    list_available_models,
+)
 from ingestion.chunker import split_documents
 from ingestion.parser import extract_content_from_pdf
 from ingestion.vectorstore import create_collection, get_vector_store
@@ -70,23 +74,90 @@ def main():
         st.markdown('<div class="sidebar-content">', unsafe_allow_html=True)
         st.header("📁 Upload & Settings")
 
+        st.markdown("#### 🔑 API Keys")
         google_api_key = st.text_input(
             "Google AI Studio API Key",
             type="password",
             value=settings.google_api_key or "",
-            help="Enter your Google AI Studio API key",
+            help="Required if using Google provider",
         )
-        upstage_api_key = st.text_input(
-            "Upstage API Key",
+        openai_api_key = st.text_input(
+            "OpenAI API Key",
             type="password",
-            value=settings.upstage_api_key or "",
-            help="Enter your Upstage API key to parse the document",
+            value=settings.openai_api_key or "",
+            help="Required if using OpenAI provider",
+        )
+        aws_access_key_id = st.text_input(
+            "AWS Access Key ID",
+            type="password",
+            value=settings.aws_access_key_id or "",
+            help="Required if using Bedrock provider",
+        )
+        aws_secret_access_key = st.text_input(
+            "AWS Secret Access Key",
+            type="password",
+            value=settings.aws_secret_access_key or "",
+            help="Required if using Bedrock provider",
         )
 
         if google_api_key:
             os.environ["GOOGLE_API_KEY"] = google_api_key
-        if upstage_api_key:
-            os.environ["UPSTAGE_API_KEY"] = upstage_api_key
+        if openai_api_key:
+            os.environ["OPENAI_API_KEY"] = openai_api_key
+        if aws_access_key_id:
+            os.environ["AWS_ACCESS_KEY_ID"] = aws_access_key_id
+        if aws_secret_access_key:
+            os.environ["AWS_SECRET_ACCESS_KEY"] = aws_secret_access_key
+
+        st.markdown("#### 🤖 Model Settings")
+        llm_provider = st.selectbox(
+            "LLM Provider",
+            options=["google", "openai", "bedrock"],
+            index=["google", "openai", "bedrock"].index(settings.llm_provider),
+        )
+        llm_model = st.selectbox(
+            "LLM Model",
+            options=list_available_models()[llm_provider],
+            index=list_available_models()[llm_provider].index(settings.llm_model)
+            if settings.llm_model in list_available_models()[llm_provider]
+            else 0,
+        )
+
+        embedding_provider = st.selectbox(
+            "Embedding Provider",
+            options=["google", "openai", "bedrock"],
+            index=["google", "openai", "bedrock"].index(settings.embedding_provider),
+        )
+        embedding_model = st.selectbox(
+            "Embedding Model",
+            options=list_available_embedding_models()[embedding_provider],
+            index=list_available_embedding_models()[embedding_provider].index(
+                settings.embedding_model
+            )
+            if settings.embedding_model in list_available_embedding_models()[embedding_provider]
+            else 0,
+        )
+
+        vision_provider = st.selectbox(
+            "Vision Provider",
+            options=["google", "openai", "bedrock"],
+            index=["google", "openai", "bedrock"].index(settings.vision_provider),
+        )
+        vision_model = st.selectbox(
+            "Vision Model",
+            options=list_available_models()[vision_provider],
+            index=list_available_models()[vision_provider].index(settings.vision_model)
+            if settings.vision_model in list_available_models()[vision_provider]
+            else 0,
+        )
+
+        # Update settings in session for downstream modules
+        settings.llm_provider = llm_provider
+        settings.llm_model = llm_model
+        settings.embedding_provider = embedding_provider
+        settings.embedding_model = embedding_model
+        settings.vision_provider = vision_provider
+        settings.vision_model = vision_model
 
         uploaded_file = st.file_uploader(
             "Choose a PDF file", type="pdf", help="Upload a PDF file to analyze"
@@ -98,7 +169,28 @@ def main():
             help="Name for the document collection",
         )
 
-        if uploaded_file and google_api_key and upstage_api_key:
+        def _has_required_keys() -> bool:
+            if llm_provider == "google" and not google_api_key:
+                return False
+            if embedding_provider == "google" and not google_api_key:
+                return False
+            if vision_provider == "google" and not google_api_key:
+                return False
+            if llm_provider == "openai" and not openai_api_key:
+                return False
+            if embedding_provider == "openai" and not openai_api_key:
+                return False
+            if vision_provider == "openai" and not openai_api_key:
+                return False
+            if llm_provider == "bedrock" and (not aws_access_key_id or not aws_secret_access_key):
+                return False
+            if embedding_provider == "bedrock" and (not aws_access_key_id or not aws_secret_access_key):
+                return False
+            if vision_provider == "bedrock" and (not aws_access_key_id or not aws_secret_access_key):
+                return False
+            return True
+
+        if uploaded_file and _has_required_keys():
             st.success("✅ File uploaded successfully!")
 
             if st.button("🔄 Process PDF", type="primary"):
@@ -123,7 +215,7 @@ def main():
         st.markdown("### 📋 Instructions:")
         st.markdown(
             """
-1. Enter your Google AI API key and your Upstage AI API key
+1. Enter API keys for the providers you selected
 2. Upload a PDF file
 3. Click 'Process PDF'
 4. Start asking questions!
@@ -144,13 +236,11 @@ def main():
                 if st.button(question, key=f"sample_{question}"):
                     st.session_state.current_question = question
 
-    if not google_api_key or not upstage_api_key:
-        if not google_api_key:
-            st.warning("⚠️ Please enter your Google AI Studio API key in the sidebar.")
-            st.info("You can get your API key from: https://aistudio.google.com/app/apikey")
-        if not upstage_api_key:
-            st.warning("⚠️ Please enter your Upstage AI API key in the sidebar.")
-            st.info("You can get your API key from: https://console.upstage.ai/docs/getting-started")
+    if not _has_required_keys():
+        st.warning("⚠️ Please enter the required API keys for your selected providers in the sidebar.")
+        st.info("Google: https://aistudio.google.com/app/apikey")
+        st.info("OpenAI: https://platform.openai.com/api-keys")
+        st.info("AWS Bedrock: https://aws.amazon.com/console/")
     elif not uploaded_file:
         st.info("📄 Please upload a PDF file to begin asking questions.")
     elif not st.session_state.get("processed"):
