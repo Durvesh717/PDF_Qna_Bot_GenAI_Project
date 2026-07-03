@@ -4,7 +4,7 @@ A production-oriented Streamlit application for chatting with PDF documents. It 
 
 ## 🌟 Features
 
-- **Multimodal PDF Ingestion**: Extracts text, tables, charts, and figures using Upstage AI + PyMuPDF4LLM.
+- **Multimodal PDF Ingestion**: Extracts text, tables, charts, and figures using PyMuPDF4LLM + PyMuPDF image extraction.
 - **Visual Content Analysis**: Gemini describes images, charts, and tables found in the PDF.
 - **Advanced Retrieval**:
   - Hybrid dense + BM25 keyword search
@@ -24,8 +24,8 @@ PDF Upload
     │
     ▼
 ┌─────────────────┐
-│   Ingestion     │  PyMuPDF4LLM + Upstage parse text & images
-│     Layer       │  Gemini describes images/charts/tables
+│   Ingestion     │  PyMuPDF4LLM parses text
+│     Layer       │  Vision LLM describes images/charts/tables
 └────────┬────────┘
          │
          ▼
@@ -51,17 +51,23 @@ PDF Upload
 └─────────────────┘
 ```
 
-## 🤖 AI Models
+## 🤖 Supported AI Providers
 
-- **Google Gemini 2.0 Flash**: Main LLM and vision model.
-- **Google Text Embedding 004**: Dense embeddings.
+The app supports switching between Google, OpenAI, and AWS Bedrock for LLM, embeddings, and vision:
+
+| Provider | LLM Models | Embedding Models | Vision Models |
+|----------|-----------|------------------|---------------|
+| **Google** | gemini-2.0-flash, gemini-1.5-pro | text-embedding-004 | gemini-2.0-flash |
+| **OpenAI** | gpt-4o, gpt-4o-mini, gpt-3.5-turbo | text-embedding-3-small | gpt-4o |
+| **AWS Bedrock** | Claude 3.5 Sonnet, Claude 3 Haiku | Titan Embed Text | Claude 3 Sonnet |
+
 - **BAAI/bge-reranker-base**: Cross-encoder reranker.
-- **Upstage Document Parse**: Structured PDF parsing.
+- **PyMuPDF4LLM + PyMuPDF**: PDF text and image extraction.
 
 ## 🛠️ Technology Stack
 
 - **Frontend**: Streamlit
-- **AI/ML**: LangChain, LangGraph, Google Generative AI
+- **AI/ML**: LangChain, LangGraph, Google Generative AI, OpenAI, AWS Bedrock
 - **Vector DB**: Chroma
 - **Evaluation**: RAGAS
 - **Observability**: LangSmith
@@ -69,12 +75,13 @@ PDF Upload
 
 ## 📋 Prerequisites
 
-Get API keys from:
+Get API keys for the providers you want to use:
 
 1. **Google AI Studio**: https://aistudio.google.com/app/apikey
-2. **Upstage AI**: https://console.upstage.ai/docs/getting-started
-3. *(Optional)* **Tavily**: https://tavily.com for premium web search fallback
-4. *(Optional)* **LangSmith**: https://smith.langchain.com for tracing
+2. **OpenAI**: https://platform.openai.com/api-keys
+3. **AWS Bedrock**: https://aws.amazon.com/console/
+4. *(Optional)* **Tavily**: https://tavily.com for premium web search fallback
+5. *(Optional)* **LangSmith**: https://smith.langchain.com for tracing
 
 ## 🚀 Local Setup
 
