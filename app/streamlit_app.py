@@ -109,14 +109,14 @@ def main():
 
                     merged_docs = extract_content_from_pdf(temp_path)
 
-                        if merged_docs:
-                            chunks = split_documents(merged_docs)
-                            vector_store = create_collection(chunks, collection_name)
-                            st.session_state.vector_store = vector_store
-                            st.session_state.agent = create_agent(vector_store)
-                            st.session_state.processed = True
-                            st.success(f"✅ PDF processed into collection '{collection_name}'!")
-                            st.rerun()
+                    if merged_docs:
+                        chunks = split_documents(merged_docs)
+                        vector_store = create_collection(chunks, collection_name)
+                        st.session_state.vector_store = vector_store
+                        st.session_state.agent = create_agent(vector_store)
+                        st.session_state.processed = True
+                        st.success(f"✅ PDF processed into collection '{collection_name}'!")
+                        st.rerun()
 
         st.markdown("</div>", unsafe_allow_html=True)
         st.markdown("---")
