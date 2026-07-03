@@ -43,22 +43,19 @@ def create_collection(
 
 
 def delete_collection(collection_name: str, settings: Settings | None = None) -> None:
-    """Delete a Chroma collection."""
+    """Delete a Chroma collection without requiring embeddings."""
     settings = settings or get_settings()
     logger.info(f"Deleting collection: {collection_name}")
-    store = Chroma(
-        collection_name=collection_name,
-        persist_directory=str(settings.chroma_persist_dir),
-        embedding_function=get_embeddings(settings.embedding_provider, settings.embedding_model),
-    )
-    store.delete_collection()
+    import chromadb
+
+    client = chromadb.PersistentClient(path=str(settings.chroma_persist_dir))
+    client.delete_collection(name=collection_name)
 
 
 def list_collections(settings: Settings | None = None) -> List[str]:
-    """List all existing collection names."""
+    """List all existing collection names without requiring embeddings."""
     settings = settings or get_settings()
-    client = Chroma(
-        persist_directory=str(settings.chroma_persist_dir),
-        embedding_function=get_embeddings(settings.embedding_provider, settings.embedding_model),
-    )
-    return client._client.list_collections()
+    import chromadb
+
+    client = chromadb.PersistentClient(path=str(settings.chroma_persist_dir))
+    return [c.name for c in client.list_collections()]
