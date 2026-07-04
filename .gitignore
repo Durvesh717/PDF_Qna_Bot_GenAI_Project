@@ -6,6 +6,9 @@ env/
 # Environment variables
 .env
 
+#helper-scripts
+run_evaluation.py
+
 # Python
 __pycache__/
 *.py[cod]

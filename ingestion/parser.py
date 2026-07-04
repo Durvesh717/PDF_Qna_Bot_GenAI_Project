@@ -2,7 +2,7 @@ import base64
 import io
 from collections import defaultdict
 from pathlib import Path
-from typing import List
+ 
 
 import pymupdf4llm
 from langchain_core.documents import Document
@@ -21,7 +21,7 @@ Describe only the factual content visible in the image:
 1. If decorative/non-informational: output '<---image--->'
 
 2. For content images:
-- General Images: List visible objects, text, and measurable attributes
+- General Images: list visible objects, text, and measurable attributes
 - Charts/Infographics: State all numerical values and labels present
 - Tables: Convert to markdown table format with exact data
 
@@ -43,7 +43,7 @@ def pdf_to_markdown(file_path: str | Path) -> list[dict]:
     )
 
 
-def extract_images_from_pdf(file_path: str | Path) -> List[Document]:
+def extract_images_from_pdf(file_path: str | Path) -> list[Document]:
     """Extract images from each page and describe them using the vision LLM."""
     logger.info(f"Extracting images from PDF: {file_path}")
     import fitz  # PyMuPDF
@@ -113,8 +113,8 @@ def extract_images_from_pdf(file_path: str | Path) -> List[Document]:
 
 
 def merge_text_and_images(
-    md_text: list[dict], image_description_docs: List[Document]
-) -> List[Document]:
+    md_text: list[dict], image_description_docs: list[Document]
+) -> list[Document]:
     """Merge markdown text and image descriptions into per-page Documents."""
     logger.info("Merging text and image descriptions by page")
     page_contents = defaultdict(list)
@@ -146,7 +146,7 @@ def merge_text_and_images(
     return merged_docs
 
 
-def extract_content_from_pdf(file_path: str | Path) -> List[Document] | None:
+def extract_content_from_pdf(file_path: str | Path) -> list[Document] | None:
     """Full ingestion pipeline: markdown text + image descriptions."""
     try:
         logger.info(f"Starting content extraction for {file_path}")

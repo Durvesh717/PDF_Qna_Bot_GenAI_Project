@@ -1,4 +1,4 @@
-from typing import List
+ 
 
 from agents.crag_agent import CRAGAgent
 from core.config import Settings, get_settings
@@ -20,9 +20,9 @@ def _get_default_metrics():
 
 
 def evaluate_qa_pairs(
-    qa_pairs: List[dict],
+    qa_pairs: list[dict],
     collection: str = "default",
-    metrics: List | None = None,
+    metrics: list | None = None,
     settings: Settings | None = None,
 ) -> dict:
     """Evaluate a list of question-answer-context triples using RAGAS."""

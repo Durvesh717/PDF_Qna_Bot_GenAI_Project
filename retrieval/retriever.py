@@ -1,4 +1,4 @@
-from typing import List
+ 
 
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
@@ -11,7 +11,7 @@ from retrieval.query_transform import generate_multi_queries
 logger = get_logger(__name__)
 
 
-def _tokenize(text: str) -> List[str]:
+def _tokenize(text: str) -> list[str]:
     """Simple whitespace tokenizer for BM25."""
     return text.lower().split()
 
@@ -28,7 +28,7 @@ class HybridRetriever:
         self.settings = settings or get_settings()
         self.vector_store = vector_store
         self.top_k = top_k or self.settings.top_k
-        self._documents: List[Document] = []
+        self._documents: list[Document] = []
         self._bm25: BM25Okapi | None = None
         self._build_bm25()
 
@@ -49,10 +49,10 @@ class HybridRetriever:
         tokenized = [_tokenize(doc.page_content) for doc in self._documents]
         self._bm25 = BM25Okapi(tokenized)
 
-    def _dense_search(self, query: str, k: int) -> List[Document]:
+    def _dense_search(self, query: str, k: int) -> list[Document]:
         return self.vector_store.similarity_search(query, k=k)
 
-    def _sparse_search(self, query: str, k: int) -> List[Document]:
+    def _sparse_search(self, query: str, k: int) -> list[Document]:
         if not self._bm25 or not self._documents:
             return []
         scores = self._bm25.get_scores(_tokenize(query))
@@ -63,8 +63,8 @@ class HybridRetriever:
 
     @staticmethod
     def _reciprocal_rank_fusion(
-        results_lists: List[List[Document]], k: int = 60
-    ) -> List[Document]:
+        results_lists: list[list[Document]], k: int = 60
+    ) -> list[Document]:
         """Fuse multiple ranked lists using RRF."""
         scores: dict[str, float] = {}
         doc_map: dict[str, Document] = {}
@@ -78,7 +78,7 @@ class HybridRetriever:
         ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
         return [doc_map[doc_id] for doc_id, _ in ranked]
 
-    def retrieve(self, query: str) -> List[Document]:
+    def retrieve(self, query: str) -> list[Document]:
         """Retrieve documents using hybrid search + RRF fusion."""
         logger.info(f"Hybrid retrieval for query: {query}")
         dense = self._dense_search(query, self.top_k)
@@ -89,7 +89,7 @@ class HybridRetriever:
 
     def retrieve_multi_query(
         self, query: str, n_variations: int = 3
-    ) -> List[Document]:
+    ) -> list[Document]:
         """Retrieve using multiple query variations and fuse results."""
         logger.info(f"Multi-query retrieval for: {query}")
         queries = [query] + generate_multi_queries(query, n=n_variations, settings=self.settings)

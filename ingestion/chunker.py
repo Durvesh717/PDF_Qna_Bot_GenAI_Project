@@ -1,4 +1,4 @@
-from typing import List
+ 
 
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -17,8 +17,8 @@ def get_text_splitter(settings: Settings | None = None) -> RecursiveCharacterTex
 
 
 def split_documents(
-    documents: List[Document], settings: Settings | None = None
-) -> List[Document]:
+    documents: list[Document], settings: Settings | None = None
+) -> list[Document]:
     """Split documents into chunks while preserving metadata."""
     settings = settings or get_settings()
     splitter = get_text_splitter(settings)
@@ -26,8 +26,8 @@ def split_documents(
 
 
 def split_documents_with_parent(
-    documents: List[Document], settings: Settings | None = None
-) -> tuple[List[Document], dict[str, Document]]:
+    documents: list[Document], settings: Settings | None = None
+) -> tuple[list[Document], dict[str, Document]]:
     """
     Split documents into chunks and track their parent documents.
     Returns (chunks, parent_map).
@@ -35,7 +35,7 @@ def split_documents_with_parent(
     settings = settings or get_settings()
     splitter = get_text_splitter(settings)
     parent_map: dict[str, Document] = {}
-    chunks: List[Document] = []
+    chunks: list[Document] = []
 
     for parent_idx, parent in enumerate(documents):
         parent_id = f"parent_{parent_idx}"

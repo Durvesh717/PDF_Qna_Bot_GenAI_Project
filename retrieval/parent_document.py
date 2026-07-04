@@ -1,4 +1,4 @@
-from typing import List
+ 
 
 from langchain_core.documents import Document
 
@@ -19,7 +19,7 @@ class ParentDocumentRetriever:
         self.retriever = retriever
         self.parent_map = parent_map
 
-    def retrieve(self, query: str) -> List[Document]:
+    def retrieve(self, query: str) -> list[Document]:
         """Retrieve chunks, map to parents, and return unique parent docs."""
         logger.info(f"Parent-document retrieval for: {query}")
         child_docs = self.retriever.retrieve(query)
@@ -39,7 +39,7 @@ class ParentDocumentRetriever:
         logger.info(f"Resolved {len(child_docs)} chunks to {len(parents)} parent docs")
         return parents
 
-    def retrieve_multi_query(self, query: str, n_variations: int = 3) -> List[Document]:
+    def retrieve_multi_query(self, query: str, n_variations: int = 3) -> list[Document]:
         """Multi-query variant that returns parent documents."""
         logger.info(f"Parent-document multi-query retrieval for: {query}")
         child_docs = self.retriever.retrieve_multi_query(query, n_variations)

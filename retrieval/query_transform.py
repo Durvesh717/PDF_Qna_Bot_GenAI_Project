@@ -1,6 +1,6 @@
-from typing import List
+ 
 
-from langchain_core.output_parsers import CommaSeparatedListOutputParser
+from langchain_core.output_parsers import CommaSeparatedlistOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 
 from core.config import Settings, get_settings
@@ -31,7 +31,7 @@ Rewritten query:"""
     return rewritten
 
 
-def generate_multi_queries(query: str, n: int = 3, settings: Settings | None = None) -> List[str]:
+def generate_multi_queries(query: str, n: int = 3, settings: Settings | None = None) -> list[str]:
     """Generate multiple query variations for better recall."""
     logger.info(f"Generating multi-queries for: {query}")
     prompt = ChatPromptTemplate.from_template(
@@ -45,7 +45,7 @@ Original question: {question}
 Generated questions:"""
     )
     model = get_llm(settings.llm_model if settings else None)
-    parser = CommaSeparatedListOutputParser()
+    parser = CommaSeparatedlistOutputParser()
     chain = prompt | model | parser
     questions = chain.invoke({"question": query, "n": n})
     questions = [q.strip() for q in questions if q.strip()]

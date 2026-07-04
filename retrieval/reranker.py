@@ -1,4 +1,4 @@
-from typing import List
+ 
 
 from langchain_core.documents import Document
 from sentence_transformers import CrossEncoder
@@ -30,7 +30,7 @@ class CrossEncoderReranker:
             self._model = CrossEncoder(self.model_name)
         return self._model
 
-    def rerank(self, query: str, documents: List[Document]) -> List[Document]:
+    def rerank(self, query: str, documents: list[Document]) -> list[Document]:
         """Score and return the top-k most relevant documents."""
         if not documents:
             return []

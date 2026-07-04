@@ -1,4 +1,4 @@
-from typing import List
+ 
 
 from langchain_community.tools import DuckDuckGoSearchResults
 from langchain_core.documents import Document
@@ -9,7 +9,7 @@ from core.logger import get_logger
 logger = get_logger(__name__)
 
 
-def web_search(query: str, settings: Settings | None = None) -> List[Document]:
+def web_search(query: str, settings: Settings | None = None) -> list[Document]:
     """Search the web and return results as Documents."""
     settings = settings or get_settings()
     logger.info(f"Performing web search fallback for: {query}")

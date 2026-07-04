@@ -1,4 +1,4 @@
-from typing import List
+ 
 
 from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
@@ -11,8 +11,8 @@ logger = get_logger(__name__)
 
 
 def generate_test_questions(
-    documents: List[Document], n: int = 5, settings: Settings | None = None
-) -> List[dict]:
+    documents: list[Document], n: int = 5, settings: Settings | None = None
+) -> list[dict]:
     """Generate synthetic question-context-answer triples from documents."""
     settings = settings or get_settings()
     model = get_llm(settings.llm_model)

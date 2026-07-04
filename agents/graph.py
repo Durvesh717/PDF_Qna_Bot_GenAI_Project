@@ -1,4 +1,4 @@
-from typing import Annotated, List, TypedDict
+from typing import Annotated, list, TypedDict
 
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
@@ -21,9 +21,9 @@ class AgentState(TypedDict):
     question: str
     rewritten_question: str
     generation: str
-    documents: List[Document]
-    web_results: List[Document]
-    steps: Annotated[List[str], lambda x, y: x + y]
+    documents: list[Document]
+    web_results: list[Document]
+    steps: Annotated[list[str], lambda x, y: x + y]
 
 
 def route_question(state: AgentState, settings: Settings | None = None) -> str:

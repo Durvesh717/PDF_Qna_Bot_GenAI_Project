@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List
+ 
 
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
@@ -26,7 +26,7 @@ def get_vector_store(
 
 
 def create_collection(
-    documents: List[Document],
+    documents: list[Document],
     collection_name: str,
     settings: Settings | None = None,
 ) -> Chroma:
@@ -52,8 +52,8 @@ def delete_collection(collection_name: str, settings: Settings | None = None) ->
     client.delete_collection(name=collection_name)
 
 
-def list_collections(settings: Settings | None = None) -> List[str]:
-    """List all existing collection names without requiring embeddings."""
+def list_collections(settings: Settings | None = None) -> list[str]:
+    """list all existing collection names without requiring embeddings."""
     settings = settings or get_settings()
     import chromadb
 
