@@ -35,24 +35,12 @@ st.markdown(
 <style>
     .main-header {
         font-size: 3rem;
-        font-weight: bold;
+        font-weight: 800;
         text-align: center;
-        color: #1f77b4;
-        margin-bottom: 2rem;
-    }
-    .chat-message {
-        padding: 1rem;
-        border-radius: 0.5rem;
-        margin-bottom: 1rem;
-        border: 1px solid #e0e0e0;
-    }
-    .user-message {
-        background-color: #808080;
-        border-left: 4px solid #2196f3;
-    }
-    .bot-message {
-        background-color: #808080;
-        border-left: 4px solid #9c27b0;
+        background: linear-gradient(45deg, #1f77b4, #9c27b0);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 1.5rem;
     }
     .sidebar-content {
         background-color: #f8f9fa;
@@ -324,50 +312,48 @@ def main():
     elif not st.session_state.get("processed"):
         st.info("📄 Please upload PDF files and click 'Process PDFs' to begin asking questions.")
     else:
-        st.info(f"💬 Chatting with collection: **{st.session_state.current_collection}**")
+        st.caption(f"💬 Chatting with collection: **{st.session_state.current_collection}**")
 
-        chat_container = st.container()
-        with chat_container:
-            for message in st.session_state.messages:
-                css_class = (
-                    "user-message" if message["role"] == "user" else "bot-message"
-                )
-                st.markdown(
-                    f"""
-                    <div class="chat-message {css_class}">
-                        <strong>{'You' if message['role'] == 'user' else 'Bot'}:</strong> {message['content']}
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+        # Render chat history using native Streamlit chat UI
+        for message in st.session_state.messages:
+            role = "user" if message["role"] == "user" else "assistant"
+            with st.chat_message(role):
+                st.markdown(message["content"])
 
-        st.markdown("---")
-
+        # Chat input element
         if "current_question" in st.session_state:
             user_question = st.session_state.current_question
             del st.session_state.current_question
         else:
-            user_question = st.text_input(
-                "Ask a question about your PDFs:",
-                placeholder="e.g., What is the main topic discussed in these documents?",
-            )
+            user_question = st.chat_input("Ask a question about your PDFs...")
 
-        if user_question and st.button("Send", type="primary"):
+        if user_question:
+            # Display user message in chat container immediately
+            with st.chat_message("user"):
+                st.markdown(user_question)
+            
             st.session_state.messages.append({"role": "user", "content": user_question})
 
-            with st.spinner("Thinking..."):
-                try:
-                    result = st.session_state.agent.invoke(user_question)
-                    response = result.get("generation", "I could not generate an answer.")
-                    st.session_state.messages.append(
-                        {"role": "assistant", "content": response}
-                    )
-                    st.rerun()
-                except Exception as e:
-                    logger.exception("Error generating response")
-                    st.error(f"Error generating response: {str(e)}")
+            # Display assistant response
+            with st.chat_message("assistant"):
+                with st.spinner("Thinking..."):
+                    try:
+                        result = st.session_state.agent.invoke(
+                            user_question, 
+                            chat_history=st.session_state.messages[:-1]
+                        )
+                        response = result.get("generation", "I could not generate an answer.")
+                        st.markdown(response)
+                        st.session_state.messages.append(
+                            {"role": "assistant", "content": response}
+                        )
+                        st.rerun()
+                    except Exception as e:
+                        logger.exception("Error generating response")
+                        st.error(f"Error generating response: {str(e)}")
 
         if st.session_state.messages:
+            st.markdown("---")
             if st.button("🗑️ Clear Chat History"):
                 st.session_state.messages = []
                 st.rerun()
