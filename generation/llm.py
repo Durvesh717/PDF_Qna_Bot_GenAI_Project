@@ -43,14 +43,21 @@ def _get_bedrock_llm(settings: Settings, model: str, temperature: float, **kwarg
 
 @lru_cache
 def get_llm(
-    provider: str | None = None,
+    provider_or_model: str | None = None,
     model_name: str | None = None,
     temperature: float = 0.2,
 ) -> BaseChatModel:
     """Return the main chat LLM based on provider and model."""
     settings = get_settings()
-    provider = provider or settings.llm_provider
-    model = model_name or settings.llm_model
+    
+    # Auto-detect if the first argument is a provider or a model name
+    providers = ["google", "openai", "bedrock"]
+    if provider_or_model in providers:
+        provider = provider_or_model
+        model = model_name or settings.llm_model
+    else:
+        provider = settings.llm_provider
+        model = provider_or_model or model_name or settings.llm_model
 
     if provider == "google":
         return _get_google_llm(settings, model, temperature)
