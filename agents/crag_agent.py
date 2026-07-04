@@ -15,11 +15,12 @@ class CRAGAgent:
         self.vector_store = vector_store
         self.app = build_agent(vector_store, self.settings)
 
-    def invoke(self, question: str) -> AgentState:
+    def invoke(self, question: str, chat_history: list[dict] = None) -> AgentState:
         """Run the agent and return the final state."""
         logger.info(f"Invoking CRAG agent for: {question}")
         initial_state: AgentState = {
             "question": question,
+            "chat_history": chat_history or [],
             "rewritten_question": "",
             "generation": "",
             "documents": [],

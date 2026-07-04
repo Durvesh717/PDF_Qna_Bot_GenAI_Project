@@ -1,4 +1,4 @@
-from typing import Annotated, list, TypedDict
+from typing import Annotated, TypedDict
 
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
@@ -19,6 +19,7 @@ logger = get_logger(__name__)
 
 class AgentState(TypedDict):
     question: str
+    chat_history: list[dict]
     rewritten_question: str
     generation: str
     documents: list[Document]
@@ -48,7 +49,7 @@ def retrieve(state: AgentState, vector_store: Chroma, settings: Settings | None 
     question = state["question"]
     logger.info(f"Retrieving for: {question}")
 
-    rewritten = rewrite_query(question, settings)
+    rewritten = rewrite_query(question, state.get("chat_history", []), settings)
     retriever = HybridRetriever(vector_store, settings=settings)
     docs = retriever.retrieve_multi_query(rewritten)
 
@@ -122,9 +123,34 @@ def generate(state: AgentState, settings: Settings | None = None) -> AgentState:
     """Generate an answer with citations."""
     settings = settings or get_settings()
     question = state["question"]
+    chat_history = state.get("chat_history", [])
     documents = state["documents"] + state.get("web_results", [])
 
-    prompt = get_generation_prompt()
+    # Format history for prompt
+    history_str = ""
+    if chat_history:
+        history_str = "\n".join(
+            f"{'User' if msg['role'] == 'user' else 'Assistant'}: {msg['content']}"
+            for msg in chat_history
+        )
+
+    # Use a prompt that incorporates history
+    prompt = ChatPromptTemplate.from_template(
+        """You are an assistant for question-answering tasks.
+Use the following pieces of retrieved context and conversation history to answer the question.
+If you don't know the answer, just say that you don't know.
+Always cite your sources using [Source X] markers in your answer.
+
+Conversation History:
+{chat_history}
+
+Retrieved Context:
+{context}
+
+Question: {question}
+
+Answer:"""
+    )
     model = get_llm(settings.llm_model)
     chain = prompt | model
 
@@ -133,7 +159,11 @@ def generate(state: AgentState, settings: Settings | None = None) -> AgentState:
         for i, doc in enumerate(documents)
     )
 
-    response = chain.invoke({"question": question, "context": context})
+    response = chain.invoke({
+        "question": question,
+        "context": context,
+        "chat_history": history_str
+    })
     generation = response.content
 
     return {
