@@ -10,7 +10,6 @@ A production-oriented Streamlit application for chatting with PDF documents. It 
   - Hybrid dense + BM25 keyword search
   - Cross-encoder reranking
   - Query rewriting and multi-query retrieval
-  - Parent document retrieval
 - **Agentic RAG (CRAG)**: LangGraph agent that grades retrieval relevance, detects hallucinations, and falls back to web search when needed.
 - **Source Citations**: Answers include references to document pages or web URLs.
 - **Multi-Document Upload**: Upload multiple PDFs into one collection and chat across all of them.
@@ -32,12 +31,12 @@ PDF Upload
          │
          ▼
 ┌─────────────────┐
-│    Chunking     │  Recursive splitter with parent tracking
+│    Chunking     │  Recursive splitter with overlap
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│  Vector Store   │  Chroma + Google text-embedding-004
+│  Vector Store   │  Chroma + provider embeddings
 │   (Persistent)  │
 └────────┬────────┘
          │
@@ -59,7 +58,7 @@ The app supports switching between Google, OpenAI, and AWS Bedrock for LLM, embe
 
 | Provider | LLM Models | Embedding Models | Vision Models |
 |----------|-----------|------------------|---------------|
-| **Google** | gemini-2.0-flash, gemini-1.5-pro | text-embedding-004 | gemini-2.0-flash |
+| **Google** | gemini-2.5-flash, gemini-2.5-pro | gemini-embedding-001 | gemini-2.5-flash |
 | **OpenAI** | gpt-4o, gpt-4o-mini, gpt-3.5-turbo | text-embedding-3-small | gpt-4o |
 | **AWS Bedrock** | Claude 3.5 Sonnet, Claude 3 Haiku | Titan Embed Text | Claude 3 Sonnet |
 
@@ -124,18 +123,10 @@ Open the UI at `http://localhost:8501`.
 
 ## 🧪 Evaluation
 
-Generate synthetic test questions and run RAGAS evaluation:
+Generate synthetic test questions and run RAGAS evaluation against an existing collection:
 
-```python
-from evaluation.test_data import generate_test_questions
-from evaluation.evaluator import evaluate_qa_pairs
-from ingestion.vectorstore import get_vector_store
-
-vector_store = get_vector_store("my_docs")
-docs = vector_store.similarity_search("", k=10)
-qa_pairs = generate_test_questions(docs)
-results = evaluate_qa_pairs(qa_pairs, collection="my_docs")
-print(results)
+```bash
+python run_evaluation.py --collection my_docs --num-questions 5
 ```
 
 Metrics tracked:
@@ -148,13 +139,14 @@ Metrics tracked:
 
 ```
 PDF_Qna_Bot_GenAI_Project/
-├── app/              # Streamlit frontend
+├── ui/               # Streamlit frontend
 ├── core/             # Config, logging, tracing
 ├── ingestion/        # PDF parsing, chunking, vector store
 ├── retrieval/        # Hybrid search, reranker, query transform
 ├── generation/       # LLM clients and prompts
 ├── agents/           # CRAG LangGraph agent
 ├── evaluation/       # RAGAS evaluation
+├── tests/            # Smoke tests (pytest)
 ├── data/             # Persistent vector store
 ├── requirements.txt
 └── README.md
@@ -162,9 +154,26 @@ PDF_Qna_Bot_GenAI_Project/
 
 ## 🔒 Security Notes
 
-- API keys are loaded from environment variables (`.env`).
-- No document content is sent to third parties except the configured LLM/embedding providers.
-- Persistent data is stored locally in `data/`.
+This is a **single-user local tool** with no built-in authentication. Do not
+expose it on a shared network or the public internet as-is.
+
+- **Credentials**: API keys are loaded from `.env` (keep it `chmod 600`). The
+  sidebar never displays stored keys; typed values only override them for the
+  current session. Keys entered in the sidebar are set as process environment
+  variables, so run one user per process.
+- **Network**: `.streamlit/config.toml` binds the server to `localhost` and
+  caps upload size. For remote access, front it with a reverse proxy that adds
+  authentication rather than binding to `0.0.0.0`.
+- **Where your data goes**: document text and questions are sent to the
+  configured LLM and embedding providers. If you enable the **web search
+  fallback** (off by default), document-derived queries are additionally sent to
+  a web search engine. If you configure LangSmith, prompts and retrieved chunks
+  are sent to LangSmith. Nothing else leaves your machine; vector data lives in
+  `data/`.
+- **Untrusted PDFs**: uploaded documents are treated as untrusted. The answer
+  prompt instructs the model to ignore embedded instructions, and markdown
+  images are stripped from answers to prevent data-exfiltration via the browser.
+  Still, only ingest PDFs you trust.
 
 ## 🐛 Troubleshooting
 
@@ -172,4 +181,11 @@ PDF_Qna_Bot_GenAI_Project/
 
 **RAGAS import errors**: RAGAS can be sensitive to LangChain versions. The evaluator uses lazy imports to avoid breaking the app.
 
-**API key errors**: Ensure `GOOGLE_API_KEY` and `UPSTAGE_API_KEY` are set in `.env`.
+**API key errors**: Ensure the API keys for your selected providers (e.g. `GOOGLE_API_KEY`) are set in `.env` or entered in the sidebar.
+
+## 🧹 Development
+
+```bash
+ruff check .        # lint
+pytest tests/       # smoke tests
+```
