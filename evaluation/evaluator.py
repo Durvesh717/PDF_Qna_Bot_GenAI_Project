@@ -1,5 +1,3 @@
- 
-
 from agents.crag_agent import CRAGAgent
 from core.config import Settings, get_settings
 from core.logger import get_logger
@@ -29,14 +27,15 @@ def evaluate_qa_pairs(
     try:
         import sys
         try:
+            # ragas imports langchain_community.chat_models.vertexai, which no
+            # longer exists; alias the google package so the import resolves.
             import langchain_google_vertexai
             sys.modules['langchain_community.chat_models.vertexai'] = langchain_google_vertexai
         except ImportError:
             pass
-        from datasets import Dataset
-        from ragas import evaluate
-        from ragas.llms import LangchainLLMWrapper
+        from ragas import EvaluationDataset, evaluate
         from ragas.embeddings import LangchainEmbeddingsWrapper
+        from ragas.llms import LangchainLLMWrapper
     except Exception as e:
         logger.error(f"RAGAS not available: {e}")
         return {"error": f"RAGAS import failed: {str(e)}"}
@@ -44,7 +43,7 @@ def evaluate_qa_pairs(
     settings = settings or get_settings()
     metrics = metrics or _get_default_metrics()
 
-    from generation.llm import get_llm, get_embeddings
+    from generation.llm import get_embeddings, get_llm
     app_llm = get_llm(settings.llm_provider, settings.llm_model)
     app_embeddings = get_embeddings(settings.embedding_provider, settings.embedding_model)
 
@@ -59,14 +58,14 @@ def evaluate_qa_pairs(
         result = agent.invoke(pair["question"])
         predictions.append(
             {
-                "question": pair["question"],
-                "answer": result.get("generation", ""),
-                "contexts": [doc.page_content for doc in result.get("documents", [])],
-                "ground_truth": pair["answer"],
+                "user_input": pair["question"],
+                "response": result.get("generation", ""),
+                "retrieved_contexts": [doc.page_content for doc in result.get("documents", [])],
+                "reference": pair["answer"],
             }
         )
 
-    dataset = Dataset.from_list(predictions)
+    dataset = EvaluationDataset.from_list(predictions)
     logger.info("Running RAGAS evaluation")
     result = evaluate(
         dataset=dataset,

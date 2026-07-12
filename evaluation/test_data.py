@@ -1,5 +1,3 @@
- 
-
 from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -15,7 +13,7 @@ def generate_test_questions(
 ) -> list[dict]:
     """Generate synthetic question-context-answer triples from documents."""
     settings = settings or get_settings()
-    model = get_llm(settings.llm_model)
+    model = get_llm(settings.llm_provider, settings.llm_model)
     prompt = ChatPromptTemplate.from_template(
         """You are creating a test set for a RAG system.
 Given the following context, generate a question that can be answered using ONLY the context,

@@ -15,7 +15,7 @@ def configure_langsmith(settings: Settings | None = None) -> None:
         return
 
     os.environ.setdefault("LANGSMITH_API_KEY", settings.langsmith_api_key)
-    os.environ.setdefault("LANGSMITH_TRACING_V2", "true")
+    os.environ.setdefault("LANGSMITH_TRACING", "true")
     os.environ.setdefault("LANGSMITH_PROJECT", settings.app_name.lower().replace(" ", "-"))
 
     logger.info("LangSmith tracing enabled")

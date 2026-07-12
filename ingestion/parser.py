@@ -2,14 +2,13 @@ import base64
 import io
 from collections import defaultdict
 from pathlib import Path
- 
 
 import pymupdf4llm
 from langchain_core.documents import Document
 from langchain_core.messages import HumanMessage
 from PIL import Image
 
-from core.config import get_settings
+from core.config import Settings, get_settings
 from core.logger import get_logger
 from generation.llm import get_vision_llm
 
@@ -43,11 +42,14 @@ def pdf_to_markdown(file_path: str | Path) -> list[dict]:
     )
 
 
-def extract_images_from_pdf(file_path: str | Path) -> list[Document]:
+def extract_images_from_pdf(
+    file_path: str | Path, settings: Settings | None = None
+) -> list[Document]:
     """Extract images from each page and describe them using the vision LLM."""
     logger.info(f"Extracting images from PDF: {file_path}")
     import fitz  # PyMuPDF
 
+    settings = settings or get_settings()
     doc = fitz.open(str(file_path))
     model = None
     image_docs = []
@@ -57,11 +59,20 @@ def extract_images_from_pdf(file_path: str | Path) -> list[Document]:
         images = page.get_images(full=True)
 
         for img_index, img in enumerate(images, start=1):
+            # Cap total described images: each is a paid vision-LLM call, so an
+            # image-stuffed PDF is a cost-amplification vector.
+            if len(image_docs) >= settings.max_images_per_pdf:
+                logger.warning(
+                    f"Reached image cap ({settings.max_images_per_pdf}); "
+                    "skipping remaining images"
+                )
+                doc.close()
+                return image_docs
+
             xref = img[0]
             try:
                 base_image = doc.extract_image(xref)
                 image_bytes = base_image["image"]
-                image_ext = base_image["ext"]
 
                 # Skip small or likely decorative images
                 if len(image_bytes) < 2048:
@@ -70,10 +81,11 @@ def extract_images_from_pdf(file_path: str | Path) -> list[Document]:
                 # Lazy-load vision model only when an image is found
                 if model is None:
                     try:
-                        model = get_vision_llm()
+                        model = get_vision_llm(settings.vision_provider, settings.vision_model)
                     except Exception as e:
                         logger.warning(f"Vision model unavailable, skipping image descriptions: {e}")
-                        break
+                        doc.close()
+                        return image_docs
 
                 # Convert to JPEG for consistency
                 pil_image = Image.open(io.BytesIO(image_bytes))
@@ -146,12 +158,14 @@ def merge_text_and_images(
     return merged_docs
 
 
-def extract_content_from_pdf(file_path: str | Path) -> list[Document] | None:
+def extract_content_from_pdf(
+    file_path: str | Path, settings: Settings | None = None
+) -> list[Document] | None:
     """Full ingestion pipeline: markdown text + image descriptions."""
     try:
         logger.info(f"Starting content extraction for {file_path}")
         md_text = pdf_to_markdown(file_path)
-        image_description_docs = extract_images_from_pdf(file_path)
+        image_description_docs = extract_images_from_pdf(file_path, settings)
         merged_docs = merge_text_and_images(md_text, image_description_docs)
         logger.info(f"Extracted {len(merged_docs)} page documents")
         return merged_docs

@@ -1,6 +1,3 @@
- 
-
-from langchain_core.output_parsers import CommaSeparatedListOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 
 from core.config import Settings, get_settings
@@ -10,11 +7,15 @@ from generation.llm import get_llm
 logger = get_logger(__name__)
 
 
-def rewrite_query(query: str, chat_history: list[dict] = None, settings: Settings | None = None) -> str:
+def rewrite_query(
+    query: str,
+    chat_history: list[dict] | None = None,
+    settings: Settings | None = None,
+) -> str:
     """Rewrite a user query into a standalone, retrieval-friendly query, taking chat history into account."""
     logger.info(f"Rewriting query: {query}")
     settings = settings or get_settings()
-    
+
     # Format chat history
     history_str = ""
     if chat_history:
@@ -36,7 +37,7 @@ User question: {question}
 
 Rewritten standalone query:"""
     )
-    model = get_llm(settings.llm_model)
+    model = get_llm(settings.llm_provider, settings.llm_model)
     chain = prompt | model
     result = chain.invoke({"question": query, "chat_history": history_str})
     rewritten = result.content.strip()
@@ -44,23 +45,33 @@ Rewritten standalone query:"""
     return rewritten
 
 
+def parse_query_lines(text: str) -> list[str]:
+    """Parse one query per line, stripping list markers like '1.' or '-'."""
+    queries = []
+    for line in text.splitlines():
+        cleaned = line.strip().lstrip("0123456789.-*) ").strip()
+        if cleaned:
+            queries.append(cleaned)
+    return queries
+
+
 def generate_multi_queries(query: str, n: int = 3, settings: Settings | None = None) -> list[str]:
     """Generate multiple query variations for better recall."""
     logger.info(f"Generating multi-queries for: {query}")
+    settings = settings or get_settings()
     prompt = ChatPromptTemplate.from_template(
         """You are an expert at information retrieval.
 Generate {n} different versions of the given user question to retrieve relevant documents from a vector database.
 The questions should be semantically equivalent but phrased differently.
-Output only the questions, separated by commas.
+Output only the questions, one per line, with no numbering or bullets.
 
 Original question: {question}
 
 Generated questions:"""
     )
-    model = get_llm(settings.llm_model if settings else None)
-    parser = CommaSeparatedListOutputParser()
-    chain = prompt | model | parser
-    questions = chain.invoke({"question": query, "n": n})
-    questions = [q.strip() for q in questions if q.strip()]
+    model = get_llm(settings.llm_provider, settings.llm_model)
+    chain = prompt | model
+    response = chain.invoke({"question": query, "n": n})
+    questions = parse_query_lines(response.content)
     logger.info(f"Generated questions: {questions}")
     return questions

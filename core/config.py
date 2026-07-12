@@ -25,13 +25,13 @@ class Settings(BaseSettings):
 
     # Model provider and model selection
     llm_provider: Literal["google", "openai", "bedrock"] = "google"
-    llm_model: str = "gemini-2.0-flash"
+    llm_model: str = "gemini-2.5-flash"
 
     embedding_provider: Literal["google", "openai", "bedrock"] = "google"
-    embedding_model: str = "models/text-embedding-004"
+    embedding_model: str = "models/gemini-embedding-001"
 
     vision_provider: Literal["google", "openai", "bedrock"] = "google"
-    vision_model: str = "gemini-2.0-flash"
+    vision_model: str = "gemini-2.5-flash"
 
     # Paths
     project_root: Path = Path(__file__).resolve().parent.parent
@@ -48,6 +48,18 @@ class Settings(BaseSettings):
 
     # Reranker
     reranker_model: str = "BAAI/bge-reranker-base"
+
+    # Agent
+    max_retries: int = 2
+    max_chat_history: int = 10
+
+    # Web search fallback is opt-in: it sends document-derived queries to a
+    # third-party search engine, so it stays off unless explicitly enabled.
+    enable_web_search: bool = False
+
+    # Ingestion safety caps (untrusted PDFs). Each described image also costs a
+    # vision-LLM call, so bound how many we process per document.
+    max_images_per_pdf: int = 50
 
     # Application
     app_name: str = "PDF Q&A Bot"

@@ -1,5 +1,3 @@
- 
-
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from rank_bm25 import BM25Okapi
@@ -35,10 +33,15 @@ class HybridRetriever:
     def _build_bm25(self) -> None:
         """Build BM25 index from all documents in the vector store."""
         try:
-            self._documents = self.vector_store.similarity_search(
-                "", k=self.vector_store._collection.count()
-            )
+            # Fetch the raw corpus directly; unlike similarity_search this
+            # needs no embedding call (embedding "" fails on some providers).
+            data = self.vector_store.get()
+            self._documents = [
+                Document(page_content=text, metadata=metadata or {})
+                for text, metadata in zip(data["documents"], data["metadatas"], strict=True)
+            ]
         except Exception:
+            logger.exception("Failed to load corpus for BM25 index")
             self._documents = []
 
         if not self._documents:
@@ -66,12 +69,16 @@ class HybridRetriever:
         results_lists: list[list[Document]], k: int = 60
     ) -> list[Document]:
         """Fuse multiple ranked lists using RRF."""
-        scores: dict[str, float] = {}
-        doc_map: dict[str, Document] = {}
+        scores: dict[tuple, float] = {}
+        doc_map: dict[tuple, Document] = {}
 
         for results in results_lists:
             for rank, doc in enumerate(results):
-                doc_id = doc.page_content[:200]
+                doc_id = (
+                    doc.metadata.get("source"),
+                    doc.metadata.get("page"),
+                    doc.page_content[:100],
+                )
                 doc_map[doc_id] = doc
                 scores[doc_id] = scores.get(doc_id, 0) + 1 / (k + rank + 1)
 

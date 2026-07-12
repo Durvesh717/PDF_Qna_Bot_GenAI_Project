@@ -1,5 +1,4 @@
 from functools import lru_cache
-from typing import Union
 
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -43,21 +42,14 @@ def _get_bedrock_llm(settings: Settings, model: str, temperature: float, **kwarg
 
 @lru_cache
 def get_llm(
-    provider_or_model: str | None = None,
+    provider: str | None = None,
     model_name: str | None = None,
     temperature: float = 0.2,
 ) -> BaseChatModel:
     """Return the main chat LLM based on provider and model."""
     settings = get_settings()
-    
-    # Auto-detect if the first argument is a provider or a model name
-    providers = ["google", "openai", "bedrock"]
-    if provider_or_model in providers:
-        provider = provider_or_model
-        model = model_name or settings.llm_model
-    else:
-        provider = settings.llm_provider
-        model = provider_or_model or model_name or settings.llm_model
+    provider = provider or settings.llm_provider
+    model = model_name or settings.llm_model
 
     if provider == "google":
         return _get_google_llm(settings, model, temperature)
@@ -132,10 +124,10 @@ def list_available_models() -> dict[str, list[str]]:
     """Return a mapping of providers to available models."""
     return {
         "google": [
+            "gemini-2.5-flash",
+            "gemini-2.5-flash-lite",
+            "gemini-2.5-pro",
             "gemini-2.0-flash",
-            "gemini-2.0-flash-lite",
-            "gemini-2.5-pro-exp-03-25",
-            "gemini-1.5-pro",
         ],
         "openai": [
             "gpt-4o",
@@ -147,7 +139,6 @@ def list_available_models() -> dict[str, list[str]]:
             "anthropic.claude-3-5-sonnet-20240620-v1:0",
             "anthropic.claude-3-sonnet-20240229-v1:0",
             "anthropic.claude-3-haiku-20240307-v1:0",
-            "amazon.titan-text-express-v1",
         ],
     }
 
@@ -156,8 +147,7 @@ def list_available_embedding_models() -> dict[str, list[str]]:
     """Return a mapping of providers to available embedding models."""
     return {
         "google": [
-            "models/text-embedding-004",
-            "models/embedding-001",
+            "models/gemini-embedding-001",
         ],
         "openai": [
             "text-embedding-3-small",

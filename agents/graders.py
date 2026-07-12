@@ -38,7 +38,7 @@ def grade_documents(question: str, documents: list, settings: Settings | None = 
     """Grade whether retrieved documents are relevant to the question."""
     logger.info("Grading document relevance")
     settings = settings or get_settings()
-    model = get_llm(settings.llm_model).with_structured_output(GradeDocuments)
+    model = get_llm(settings.llm_provider, settings.llm_model).with_structured_output(GradeDocuments)
 
     prompt = ChatPromptTemplate.from_template(
         """You are a grader assessing relevance of a retrieved document to a user question.
@@ -68,7 +68,7 @@ def grade_hallucination(documents: list, generation: str, settings: Settings | N
     """Grade whether the generated answer is grounded in the retrieved documents."""
     logger.info("Grading for hallucination")
     settings = settings or get_settings()
-    model = get_llm(settings.llm_model).with_structured_output(GradeHallucinations)
+    model = get_llm(settings.llm_provider, settings.llm_model).with_structured_output(GradeHallucinations)
 
     prompt = ChatPromptTemplate.from_template(
         """You are a grader assessing whether an LLM generation is supported by a set of retrieved facts.
@@ -96,7 +96,7 @@ def grade_answer(question: str, generation: str, settings: Settings | None = Non
     """Grade whether the generated answer addresses the question."""
     logger.info("Grading answer usefulness")
     settings = settings or get_settings()
-    model = get_llm(settings.llm_model).with_structured_output(GradeAnswer)
+    model = get_llm(settings.llm_provider, settings.llm_model).with_structured_output(GradeAnswer)
 
     prompt = ChatPromptTemplate.from_template(
         """You are a grader assessing whether an answer addresses / resolves a question.
