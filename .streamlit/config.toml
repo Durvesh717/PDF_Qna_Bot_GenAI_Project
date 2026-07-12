@@ -1,0 +1,15 @@
+# Security-hardened defaults. Override per-deployment as needed.
+[server]
+# Bind to loopback only. The app has no authentication, so it must not be
+# exposed on all interfaces. Put a reverse proxy with auth in front for remote
+# access instead of changing this.
+address = "localhost"
+# Cap upload size (MB); PDFs are parsed by native code, so bound the input.
+maxUploadSize = 25
+# Cross-site request forgery / cross-origin protections (defaults, pinned on).
+enableXsrfProtection = true
+enableCORS = true
+
+[browser]
+# Do not send usage telemetry to Streamlit.
+gatherUsageStats = false
